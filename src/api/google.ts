@@ -39,11 +39,13 @@ export interface CreateEventParams {
 
 export async function listCalendarEvents(
   timeMin?: string,
-  timeMax?: string
+  timeMax?: string,
+  maxResults: number = 100
 ): Promise<{ items: CalendarEvent[] }> {
   const params = new URLSearchParams();
   if (timeMin) params.set("time_min", timeMin);
   if (timeMax) params.set("time_max", timeMax);
+  params.set("max_results", String(maxResults));
 
   const res = await fetch(`${BASE}/calendar/events?${params}`, {
     headers: authHeaders(),
