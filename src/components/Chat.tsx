@@ -7,14 +7,16 @@ interface Props {
   threadId: number | null;
   onThreadUpdated: () => void;
   onLocationNamesChange?: (names: string[]) => void;
+  onClearLocationsRef?: (fn: () => void) => void;
 }
 
 export function Chat({
   threadId,
   onThreadUpdated,
   onLocationNamesChange,
+  onClearLocationsRef,
 }: Props) {
-  const { messages, isStreaming, isLoading, sendMessage, locationNames } =
+  const { messages, isStreaming, isLoading, sendMessage, locationNames, clearLocations } =
     useChat({
       threadId,
       onThreadUpdated,
@@ -28,6 +30,10 @@ export function Chat({
   useEffect(() => {
     onLocationNamesChange?.(locationNames);
   }, [locationNames, onLocationNamesChange]);
+
+  useEffect(() => {
+    onClearLocationsRef?.(clearLocations);
+  }, [clearLocations, onClearLocationsRef]);
 
   return (
     <div className="flex h-screen flex-1 flex-col bg-white dark:bg-gray-900">

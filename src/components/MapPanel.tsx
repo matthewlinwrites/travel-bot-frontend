@@ -4,12 +4,14 @@ import {
   Map,
   AdvancedMarker,
   InfoWindow,
+  Pin,
   useMap,
 } from "@vis.gl/react-google-maps";
 import type { Location } from "../types/chat";
 
 interface Props {
   locationNames: string[];
+  onClear?: () => void;
 }
 
 const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "";
@@ -84,12 +86,20 @@ function MapMarkers({ locationNames }: Props) {
 
   return (
     <>
-      {locations.map((loc) => (
+      {locations.map((loc, i) => (
         <AdvancedMarker
           key={loc.name}
           position={{ lat: loc.lat, lng: loc.lng }}
           onClick={() => setSelectedLocation(loc)}
-        />
+          title={loc.name}
+        >
+          <Pin
+            background="#4f46e5"
+            glyphColor="#ffffff"
+            borderColor="#3730a3"
+            glyph={String(i + 1)}
+          />
+        </AdvancedMarker>
       ))}
       {selectedLocation && (
         <InfoWindow
@@ -108,7 +118,7 @@ function MapMarkers({ locationNames }: Props) {
   );
 }
 
-export function MapPanel({ locationNames }: Props) {
+export function MapPanel({ locationNames, onClear }: Props) {
   if (!API_KEY) {
     return (
       <div className="flex h-full items-center justify-center bg-gray-100 dark:bg-gray-800 p-8">
@@ -131,14 +141,24 @@ export function MapPanel({ locationNames }: Props) {
 
   return (
     <APIProvider apiKey={API_KEY}>
-      <Map
-        defaultCenter={{ lat: 20, lng: 0 }}
-        defaultZoom={2}
-        mapId="travel-bot-map"
-        className="h-full w-full"
-      >
-        <MapMarkers locationNames={locationNames} />
-      </Map>
+      <div className="relative h-full w-full">
+        <Map
+          defaultCenter={{ lat: 20, lng: 0 }}
+          defaultZoom={2}
+          mapId="travel-bot-map"
+          className="h-full w-full"
+        >
+          <MapMarkers locationNames={locationNames} />
+        </Map>
+        {locationNames.length > 0 && onClear && (
+          <button
+            onClick={onClear}
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm font-medium px-4 py-2 rounded-full shadow-md border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            Clear map
+          </button>
+        )}
+      </div>
     </APIProvider>
   );
 }

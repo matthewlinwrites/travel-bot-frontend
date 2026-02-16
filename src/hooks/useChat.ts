@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { ChatMessage } from "../types/chat";
 import { authHeaders } from "../api/auth";
-import { fetchMessages, updateThreadTitle } from "../api/threads";
+import { fetchMessages, generateThreadTitle } from "../api/threads";
 import { extractLocationNames } from "../api/locations";
 
 const API_URL = "http://localhost:8000/api/chat";
@@ -130,11 +130,11 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
             );
         }
 
-        // Auto-title after first message
+        // Auto-title after first message using LLM
         if (isFirstMessage && threadId !== null) {
-          const title = content.slice(0, 60);
-          await updateThreadTitle(threadId, title).catch(() => {});
-          onThreadUpdated?.();
+          generateThreadTitle(threadId, content)
+            .then(() => onThreadUpdated?.())
+            .catch(() => onThreadUpdated?.());
         } else {
           onThreadUpdated?.();
         }
@@ -154,5 +154,9 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
     [messages, threadId, onThreadUpdated, addLocationNames]
   );
 
-  return { messages, isStreaming, isLoading, sendMessage, locationNames };
+  const clearLocations = useCallback(() => {
+    setLocationNames([]);
+  }, []);
+
+  return { messages, isStreaming, isLoading, sendMessage, locationNames, clearLocations };
 }

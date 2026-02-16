@@ -36,5 +36,4 @@ export interface SettingsUpdate {
   preferred_language?: string;
   travel_style?: string;
   ical_url?: string;
-  google_calendar_connected?: boolean;
 }

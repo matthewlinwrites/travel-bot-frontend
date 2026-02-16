@@ -28,6 +28,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   updateUser: (settings: SettingsUpdate) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -74,9 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updated);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const updated = await fetchCurrentUser();
+    setUser(updated);
+  }, []);
+
   return (
     <AuthContext.Provider
-      value={{ user, isAuthLoading, login, register, logout, updateUser }}
+      value={{ user, isAuthLoading, login, register, logout, updateUser, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

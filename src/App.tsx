@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Chat } from "./components/Chat";
 import { Sidebar } from "./components/Sidebar";
 import { MapPanel } from "./components/MapPanel";
 import { LoginPage } from "./components/LoginPage";
 import { RegisterPage } from "./components/RegisterPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { CalendarPage } from "./components/CalendarPage";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import type { Thread } from "./types/chat";
 import {
@@ -14,14 +15,15 @@ import {
   updateThreadTitle,
 } from "./api/threads";
 
-type View = "login" | "register" | "chat" | "settings";
+type View = "login" | "register" | "chat" | "settings" | "calendar";
 
 function AppContent() {
-  const { user, isAuthLoading, logout } = useAuth();
+  const { user, isAuthLoading, logout, refreshUser } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
   const [currentView, setCurrentView] = useState<View>("login");
   const [locationNames, setLocationNames] = useState<string[]>([]);
+  const clearLocationsRef = useRef<() => void>(() => {});
 
   const loadThreads = useCallback(async () => {
     try {
@@ -37,10 +39,22 @@ function AppContent() {
     }
   }, []);
 
+  // Handle Google OAuth callback redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google") === "connected") {
+      setCurrentView("settings");
+      refreshUser();
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [refreshUser]);
+
   // Load threads when user logs in
   useEffect(() => {
     if (user) {
-      setCurrentView("chat");
+      if (currentView === "login" || currentView === "register") {
+        setCurrentView("chat");
+      }
       loadThreads();
     } else {
       setThreads([]);
@@ -106,6 +120,11 @@ function AppContent() {
     return <SettingsPage onBack={() => setCurrentView("chat")} />;
   }
 
+  // Calendar page
+  if (currentView === "calendar") {
+    return <CalendarPage onBack={() => setCurrentView("chat")} />;
+  }
+
   // Main chat view with split panel
   return (
     <div className="flex h-screen">
@@ -117,8 +136,10 @@ function AppContent() {
         onDeleteThread={handleDeleteThread}
         onRenameThread={handleRenameThread}
         onOpenSettings={() => setCurrentView("settings")}
+        onOpenCalendar={() => setCurrentView("calendar")}
         onLogout={handleLogout}
         userDisplayName={user.display_name || user.email}
+        googleCalendarConnected={user.google_calendar_connected}
       />
       <div className="flex flex-1 min-w-0">
         <div className="w-[55%]">
@@ -127,10 +148,11 @@ function AppContent() {
             threadId={activeThreadId}
             onThreadUpdated={loadThreads}
             onLocationNamesChange={setLocationNames}
+            onClearLocationsRef={(fn) => { clearLocationsRef.current = fn; }}
           />
         </div>
         <div className="w-[45%] border-l dark:border-gray-700">
-          <MapPanel locationNames={locationNames} />
+          <MapPanel locationNames={locationNames} onClear={() => clearLocationsRef.current()} />
         </div>
       </div>
     </div>

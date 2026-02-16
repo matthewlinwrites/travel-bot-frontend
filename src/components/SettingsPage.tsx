@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { getGoogleAuthUrl, disconnectGoogle } from "../api/google";
 
 interface Props {
   onBack: () => void;
@@ -28,7 +29,7 @@ const TRAVEL_STYLES = [
 ];
 
 export function SettingsPage({ onBack }: Props) {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, refreshUser } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.display_name ?? "");
   const [language, setLanguage] = useState(user?.preferred_language ?? "en");
@@ -36,6 +37,7 @@ export function SettingsPage({ onBack }: Props) {
   const [icalUrl, setIcalUrl] = useState(user?.ical_url ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -175,13 +177,49 @@ export function SettingsPage({ onBack }: Props) {
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Google Calendar
                 </label>
-                <button
-                  type="button"
-                  disabled
-                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-400 dark:border-gray-600"
-                >
-                  Connect Google Calendar — Coming soon
-                </button>
+                {user?.google_calendar_connected ? (
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                      <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 8 8">
+                        <circle cx="4" cy="4" r="3" />
+                      </svg>
+                      Connected
+                    </span>
+                    <button
+                      type="button"
+                      disabled={disconnecting}
+                      onClick={async () => {
+                        setDisconnecting(true);
+                        try {
+                          await disconnectGoogle();
+                          await refreshUser();
+                        } catch (err) {
+                          console.error("Failed to disconnect:", err);
+                        } finally {
+                          setDisconnecting(false);
+                        }
+                      }}
+                      className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                    >
+                      {disconnecting ? "Disconnecting..." : "Disconnect"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const authUrl = await getGoogleAuthUrl();
+                        window.location.href = authUrl;
+                      } catch (err) {
+                        console.error("Failed to get auth URL:", err);
+                      }
+                    }}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    Connect Google Calendar
+                  </button>
+                )}
               </div>
             </div>
           </section>

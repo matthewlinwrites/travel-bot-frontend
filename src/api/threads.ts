@@ -46,3 +46,16 @@ export async function updateThreadTitle(
   if (!res.ok) throw new Error("Failed to update title");
   return res.json();
 }
+
+export async function generateThreadTitle(
+  id: number,
+  message: string
+): Promise<Thread> {
+  const res = await fetch(`${BASE}/threads/${id}/generate-title`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ message }),
+  });
+  if (!res.ok) throw new Error("Failed to generate title");
+  return res.json();
+}
