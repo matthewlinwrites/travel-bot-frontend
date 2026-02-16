@@ -8,6 +8,9 @@ interface Props {
   onNewThread: () => void;
   onDeleteThread: (id: number) => void;
   onRenameThread: (id: number, title: string) => void;
+  onOpenSettings: () => void;
+  onLogout: () => void;
+  userDisplayName: string;
 }
 
 export function Sidebar({
@@ -17,6 +20,9 @@ export function Sidebar({
   onNewThread,
   onDeleteThread,
   onRenameThread,
+  onOpenSettings,
+  onLogout,
+  userDisplayName,
 }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -133,6 +139,26 @@ export function Sidebar({
             )}
           </div>
         ))}
+      </div>
+
+      <div className="mt-auto border-t p-3 dark:border-gray-700">
+        <p className="mb-2 truncate text-sm font-medium text-gray-700 dark:text-gray-300">
+          {userDisplayName}
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={onOpenSettings}
+            className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            Settings
+          </button>
+          <button
+            onClick={onLogout}
+            className="flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs text-gray-600 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   );

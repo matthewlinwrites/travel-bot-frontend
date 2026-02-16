@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Chat } from "./components/Chat";
 import { Sidebar } from "./components/Sidebar";
+import { MapPanel } from "./components/MapPanel";
+import { LoginPage } from "./components/LoginPage";
+import { RegisterPage } from "./components/RegisterPage";
+import { SettingsPage } from "./components/SettingsPage";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import type { Thread } from "./types/chat";
 import {
   fetchThreads,
@@ -9,22 +14,40 @@ import {
   updateThreadTitle,
 } from "./api/threads";
 
-function App() {
+type View = "login" | "register" | "chat" | "settings";
+
+function AppContent() {
+  const { user, isAuthLoading, logout } = useAuth();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+  const [currentView, setCurrentView] = useState<View>("login");
+  const [locationNames, setLocationNames] = useState<string[]>([]);
 
   const loadThreads = useCallback(async () => {
     try {
       const data = await fetchThreads();
       setThreads(data);
+      // Auto-select the first thread if none is active
+      setActiveThreadId((current) => {
+        if (current !== null) return current;
+        return data.length > 0 ? data[0].id : null;
+      });
     } catch (err) {
       console.error("Failed to load threads:", err);
     }
   }, []);
 
+  // Load threads when user logs in
   useEffect(() => {
-    loadThreads();
-  }, [loadThreads]);
+    if (user) {
+      setCurrentView("chat");
+      loadThreads();
+    } else {
+      setThreads([]);
+      setActiveThreadId(null);
+      setCurrentView("login");
+    }
+  }, [user, loadThreads]);
 
   const handleNewThread = async () => {
     try {
@@ -51,14 +74,39 @@ function App() {
   const handleRenameThread = async (id: number, title: string) => {
     try {
       const updated = await updateThreadTitle(id, title);
-      setThreads((prev) =>
-        prev.map((t) => (t.id === id ? updated : t))
-      );
+      setThreads((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch (err) {
       console.error("Failed to rename thread:", err);
     }
   };
 
+  const handleLogout = () => {
+    logout();
+  };
+
+  // Loading state while checking stored token
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    );
+  }
+
+  // Not logged in — show auth pages
+  if (!user) {
+    if (currentView === "register") {
+      return <RegisterPage onSwitchToLogin={() => setCurrentView("login")} />;
+    }
+    return <LoginPage onSwitchToRegister={() => setCurrentView("register")} />;
+  }
+
+  // Settings page
+  if (currentView === "settings") {
+    return <SettingsPage onBack={() => setCurrentView("chat")} />;
+  }
+
+  // Main chat view with split panel
   return (
     <div className="flex h-screen">
       <Sidebar
@@ -68,13 +116,32 @@ function App() {
         onNewThread={handleNewThread}
         onDeleteThread={handleDeleteThread}
         onRenameThread={handleRenameThread}
+        onOpenSettings={() => setCurrentView("settings")}
+        onLogout={handleLogout}
+        userDisplayName={user.display_name || user.email}
       />
-      <Chat
-        key={activeThreadId}
-        threadId={activeThreadId}
-        onThreadUpdated={loadThreads}
-      />
+      <div className="flex flex-1 min-w-0">
+        <div className="w-[55%]">
+          <Chat
+            key={activeThreadId}
+            threadId={activeThreadId}
+            onThreadUpdated={loadThreads}
+            onLocationNamesChange={setLocationNames}
+          />
+        </div>
+        <div className="w-[45%] border-l dark:border-gray-700">
+          <MapPanel locationNames={locationNames} />
+        </div>
+      </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

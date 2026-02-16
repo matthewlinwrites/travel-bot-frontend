@@ -6,18 +6,28 @@ import { ChatInput } from "./ChatInput";
 interface Props {
   threadId: number | null;
   onThreadUpdated: () => void;
+  onLocationNamesChange?: (names: string[]) => void;
 }
 
-export function Chat({ threadId, onThreadUpdated }: Props) {
-  const { messages, isStreaming, isLoading, sendMessage } = useChat({
-    threadId,
-    onThreadUpdated,
-  });
+export function Chat({
+  threadId,
+  onThreadUpdated,
+  onLocationNamesChange,
+}: Props) {
+  const { messages, isStreaming, isLoading, sendMessage, locationNames } =
+    useChat({
+      threadId,
+      onThreadUpdated,
+    });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    onLocationNamesChange?.(locationNames);
+  }, [locationNames, onLocationNamesChange]);
 
   return (
     <div className="flex h-screen flex-1 flex-col bg-white dark:bg-gray-900">

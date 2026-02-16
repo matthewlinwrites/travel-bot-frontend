@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import type { ChatMessage } from "../types/chat";
+import { authHeaders } from "../api/auth";
 import { fetchMessages, updateThreadTitle } from "../api/threads";
+import { extractLocationNames } from "../api/locations";
 
 const API_URL = "http://localhost:8000/api/chat";
 
@@ -13,18 +15,32 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [locationNames, setLocationNames] = useState<string[]>([]);
 
   // Load persisted messages when threadId changes
   useEffect(() => {
     if (threadId === null) {
       setMessages([]);
+      setLocationNames([]);
       return;
     }
     let cancelled = false;
     setIsLoading(true);
+    setLocationNames([]);
     fetchMessages(threadId)
-      .then((msgs) => {
-        if (!cancelled) setMessages(msgs);
+      .then(async (msgs) => {
+        if (cancelled) return;
+        setMessages(msgs);
+
+        // Extract location names from all existing assistant messages
+        const assistantTexts = msgs
+          .filter((m) => m.role === "assistant")
+          .map((m) => m.content);
+        if (assistantTexts.length > 0) {
+          const combinedText = assistantTexts.join("\n\n");
+          const names = await extractLocationNames(combinedText);
+          if (!cancelled) setLocationNames(names);
+        }
       })
       .catch((err) => console.error("Failed to load messages:", err))
       .finally(() => {
@@ -34,6 +50,14 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
       cancelled = true;
     };
   }, [threadId]);
+
+  const addLocationNames = useCallback((newNames: string[]) => {
+    setLocationNames((prev) => {
+      const seen = new Set(prev);
+      const unique = newNames.filter((n) => !seen.has(n));
+      return unique.length > 0 ? [...prev, ...unique] : prev;
+    });
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -48,7 +72,7 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
       try {
         const response = await fetch(API_URL, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify({
             messages: updatedMessages,
             thread_id: threadId,
@@ -97,6 +121,15 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
           }
         }
 
+        // Extract location names from the completed assistant response
+        if (assistantContent) {
+          extractLocationNames(assistantContent)
+            .then((names) => addLocationNames(names))
+            .catch((err) =>
+              console.error("Failed to extract locations:", err)
+            );
+        }
+
         // Auto-title after first message
         if (isFirstMessage && threadId !== null) {
           const title = content.slice(0, 60);
@@ -118,8 +151,8 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
         setIsStreaming(false);
       }
     },
-    [messages, threadId, onThreadUpdated]
+    [messages, threadId, onThreadUpdated, addLocationNames]
   );
 
-  return { messages, isStreaming, isLoading, sendMessage };
+  return { messages, isStreaming, isLoading, sendMessage, locationNames };
 }
