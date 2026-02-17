@@ -105,15 +105,34 @@ export function useChat({ threadId, onThreadUpdated }: UseChatOptions) {
 
               try {
                 const parsed = JSON.parse(data);
-                assistantContent += parsed.content;
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    role: "assistant",
-                    content: assistantContent,
-                  };
-                  return updated;
-                });
+                if (parsed.tool_call) {
+                  // Show a status message while the tool executes
+                  const toolName = parsed.tool_call.name;
+                  const toolArgs = parsed.tool_call.arguments;
+                  const statusText =
+                    toolName === "create_calendar_event"
+                      ? `Creating calendar event: ${toolArgs.summary || "event"}...\n\n`
+                      : `Running ${toolName}...\n\n`;
+                  assistantContent += statusText;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      role: "assistant",
+                      content: assistantContent,
+                    };
+                    return updated;
+                  });
+                } else {
+                  assistantContent += parsed.content;
+                  setMessages((prev) => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = {
+                      role: "assistant",
+                      content: assistantContent,
+                    };
+                    return updated;
+                  });
+                }
               } catch {
                 // skip malformed chunks
               }
